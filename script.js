@@ -10,7 +10,7 @@ const world = {
 };
 
 // =====================
-// INIT CARDS
+// INIT CARDS (CENTER SPAWN)
 // =====================
 
 cards.forEach(card => {
@@ -20,23 +20,27 @@ cards.forEach(card => {
     card.w = rect.width;
     card.h = rect.height;
 
-    // Startposition
-    card.x = Math.random() * (world.width - card.w);
-    card.y = Math.random() * (world.height - card.h);
+    // Spawnbereich um die Mitte
+    const centerX = world.width / 2;
+    const centerY = world.height / 2;
 
-    // Geschwindigkeit (gleichmäßig)
-    const speed = 120 + Math.random() * 80; // px/sec
+    const spread = 150; // wie weit sie auseinander starten
+
+    card.x = centerX - card.w / 2 + (Math.random() - 0.5) * spread;
+    card.y = centerY - card.h / 2 + (Math.random() - 0.5) * spread;
+
+    // Geschwindigkeit (konstant & sauber)
+    const speed = 140 + Math.random() * 60;
     const angle = Math.random() * Math.PI * 2;
 
     card.vx = Math.cos(angle) * speed;
     card.vy = Math.sin(angle) * speed;
 
-    card.style.left = card.x + "px";
-    card.style.top = card.y + "px";
+    card.style.transform = `translate(${card.x}px, ${card.y}px)`;
 });
 
 // =====================
-// GAME LOOP (SMOOTH)
+// GAME LOOP
 // =====================
 
 let lastTime = 0;
@@ -54,7 +58,7 @@ function loop(time) {
 requestAnimationFrame(loop);
 
 // =====================
-// CARD PHYSICS
+// CARD PHYSICS (IMPROVED)
 // =====================
 
 function updateCards(dt) {
@@ -64,33 +68,44 @@ function updateCards(dt) {
         card.x += card.vx * dt;
         card.y += card.vy * dt;
 
-        // LEFT / RIGHT
-        if (card.x <= 0) {
+        // ---- X AXIS ----
+        if (card.x < 0) {
             card.x = 0;
             card.vx = Math.abs(card.vx);
-        }
-        else if (card.x + card.w >= world.width) {
+        } 
+        else if (card.x + card.w > world.width) {
             card.x = world.width - card.w;
             card.vx = -Math.abs(card.vx);
         }
 
-        // TOP / BOTTOM
-        if (card.y <= 0) {
+        // ---- Y AXIS ----
+        if (card.y < 0) {
             card.y = 0;
             card.vy = Math.abs(card.vy);
-        }
-        else if (card.y + card.h >= world.height) {
+        } 
+        else if (card.y + card.h > world.height) {
             card.y = world.height - card.h;
             card.vy = -Math.abs(card.vy);
         }
 
-        // Position anwenden (GPU-friendly)
+        // 🔥 Anti-Sticking: minimale Geschwindigkeit sichern
+        const min = 60;
+
+        if (Math.abs(card.vx) < min) {
+            card.vx = min * Math.sign(card.vx || 1);
+        }
+
+        if (Math.abs(card.vy) < min) {
+            card.vy = min * Math.sign(card.vy || 1);
+        }
+
+        // Render (GPU beschleunigt)
         card.style.transform = `translate(${card.x}px, ${card.y}px)`;
     });
 }
 
 // =====================
-// GALAXY (PARALLAX)
+// GALAXY (IMPROVED)
 // =====================
 
 const canvas = document.getElementById("galaxy");
@@ -112,15 +127,15 @@ function createGalaxy() {
     stars = [];
 
     for (let i = 0; i < 300; i++) {
-        const depth = Math.random(); // 0 = far, 1 = near
+        const depth = Math.random();
 
         stars.push({
             x: Math.random() * world.width,
             y: Math.random() * world.height,
             z: depth,
             size: depth * 2 + 0.2,
-            speed: depth * 30 + 10,
-            twinkle: Math.random() * Math.PI * 2
+            speed: depth * 40 + 10,
+            phase: Math.random() * Math.PI * 2
         });
     }
 }
@@ -141,9 +156,9 @@ function drawGalaxy(time) {
             star.x = Math.random() * world.width;
         }
 
-        // Twinkle + Größenvariation
-        const pulse = Math.sin(time * 0.002 + star.twinkle) * 0.5 + 0.5;
-        const size = star.size * (0.7 + pulse * 0.6);
+        // Twinkle
+        const pulse = Math.sin(time * 0.002 + star.phase);
+        const size = star.size * (1 + pulse * 0.3);
 
         ctx.beginPath();
         ctx.arc(star.x, star.y, size, 0, Math.PI * 2);
