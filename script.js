@@ -10,11 +10,10 @@ const world = {
 };
 
 // =====================
-// INIT CARDS (CENTER + SMOOTH START)
+// INIT CARDS (CENTER + SLOW START)
 // =====================
 
 cards.forEach(card => {
-
     const rect = card.getBoundingClientRect();
 
     card.w = rect.width;
@@ -31,15 +30,14 @@ cards.forEach(card => {
     // Target velocity (full speed)
     const speed = 140 + Math.random() * 60;
     const angle = Math.random() * Math.PI * 2;
-
     card.targetVx = Math.cos(angle) * speed;
     card.targetVy = Math.sin(angle) * speed;
 
-    // Start almost still
-    card.vx = card.targetVx * 0.05;
-    card.vy = card.targetVy * 0.05;
+    // Start very slow (slower start momentum)
+    card.vx = card.targetVx * 0.02;  // 2% of target speed
+    card.vy = card.targetVy * 0.02;
 
-    // Life timer for smooth start
+    // Life timer for smooth acceleration
     card.life = 0;
 
     // Initial visual style
@@ -66,21 +64,21 @@ function loop(time) {
 requestAnimationFrame(loop);
 
 // =====================
-// CARD PHYSICS & SMOOTH START
+// CARD PHYSICS & SLOW ACCELERATION
 // =====================
 
 function updateCards(dt) {
     cards.forEach(card => {
 
-        // Increase life (0→1 for easing)
+        // Life for easing (0 → 1)
         card.life += dt;
-        const ease = Math.min(card.life * 0.8, 1);
+        const ease = Math.min(card.life * 0.5, 1); // slower ramp
 
-        // Smooth acceleration towards target velocity
-        card.vx += (card.targetVx - card.vx) * 0.02;
-        card.vy += (card.targetVy - card.vy) * 0.02;
+        // Gradual acceleration
+        card.vx += (card.targetVx - card.vx) * 0.01;  // slower ramp
+        card.vy += (card.targetVy - card.vy) * 0.01;
 
-        // Move
+        // Movement
         card.x += card.vx * dt;
         card.y += card.vy * dt;
 
@@ -102,7 +100,7 @@ function updateCards(dt) {
             card.vy = -Math.abs(card.vy);
         }
 
-        // Ensure minimal speed (no sticking)
+        // Ensure minimal speed (prevent sticking)
         const minSpeed = 60;
         if (Math.abs(card.vx) < minSpeed) card.vx = minSpeed * Math.sign(card.vx || 1);
         if (Math.abs(card.vy) < minSpeed) card.vy = minSpeed * Math.sign(card.vy || 1);
@@ -124,7 +122,6 @@ const ctx = canvas.getContext("2d");
 function resize() {
     world.width = window.innerWidth;
     world.height = window.innerHeight;
-
     canvas.width = world.width;
     canvas.height = world.height;
 }
@@ -178,7 +175,6 @@ function drawGalaxy(time) {
 window.addEventListener("resize", () => {
     resize();
     createGalaxy();
-
     cards.forEach(card => {
         if (card.x + card.w > world.width) card.x = world.width - card.w;
         if (card.y + card.h > world.height) card.y = world.height - card.h;
