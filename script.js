@@ -1,18 +1,31 @@
 // =====================
-// FLOATING LINK CARDS (REAL BOUNCE)
+// SETUP
 // =====================
 
-const cards = document.querySelectorAll(".card");
+const cards = Array.from(document.querySelectorAll(".card"));
+
+const world = {
+    width: window.innerWidth,
+    height: window.innerHeight
+};
+
+// =====================
+// INIT CARDS
+// =====================
 
 cards.forEach(card => {
+
     const rect = card.getBoundingClientRect();
 
-    // Startposition innerhalb des Screens
-    card.x = Math.random() * (window.innerWidth - rect.width);
-    card.y = Math.random() * (window.innerHeight - rect.height);
+    card.w = rect.width;
+    card.h = rect.height;
 
-    // Konstante Geschwindigkeit
-    const speed = 2 + Math.random() * 2;
+    // Startposition
+    card.x = Math.random() * (world.width - card.w);
+    card.y = Math.random() * (world.height - card.h);
+
+    // Geschwindigkeit (gleichmäßig)
+    const speed = 120 + Math.random() * 80; // px/sec
     const angle = Math.random() * Math.PI * 2;
 
     card.vx = Math.cos(angle) * speed;
@@ -22,142 +35,137 @@ cards.forEach(card => {
     card.style.top = card.y + "px";
 });
 
-function moveCards() {
-    cards.forEach(card => {
+// =====================
+// GAME LOOP (SMOOTH)
+// =====================
 
-        const rect = card.getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
+let lastTime = 0;
 
-        // Bewegung
-        card.x += card.vx;
-        card.y += card.vy;
+function loop(time) {
+    const dt = (time - lastTime) / 1000;
+    lastTime = time;
 
-        // LEFT / RIGHT Bounce
-        if (card.x <= 0 || card.x + width >= window.innerWidth) {
-            if (card.x <= 0) card.x = 0;
-            if (card.x + width >= window.innerWidth) {
-                card.x = window.innerWidth - width;
-            }
+    updateCards(dt);
+    drawGalaxy(time);
 
-            card.vx *= -1;
-        }
-
-        // TOP / BOTTOM Bounce
-        if (card.y <= 0 || card.y + height >= window.innerHeight) {
-            if (card.y <= 0) card.y = 0;
-            if (card.y + height >= window.innerHeight) {
-                card.y = window.innerHeight - height;
-            }
-
-            card.vy *= -1;
-        }
-
-        // Mindestgeschwindigkeit sichern (kein Steckenbleiben)
-        const minSpeed = 1.5;
-
-        if (Math.abs(card.vx) < minSpeed) {
-            card.vx = minSpeed * (card.vx < 0 ? -1 : 1);
-        }
-
-        if (Math.abs(card.vy) < minSpeed) {
-            card.vy = minSpeed * (card.vy < 0 ? -1 : 1);
-        }
-
-        // Position anwenden
-        card.style.left = card.x + "px";
-        card.style.top = card.y + "px";
-    });
-
-    requestAnimationFrame(moveCards);
+    requestAnimationFrame(loop);
 }
 
-moveCards();
-
+requestAnimationFrame(loop);
 
 // =====================
-// GALAXY BACKGROUND
+// CARD PHYSICS
+// =====================
+
+function updateCards(dt) {
+    cards.forEach(card => {
+
+        // Bewegung
+        card.x += card.vx * dt;
+        card.y += card.vy * dt;
+
+        // LEFT / RIGHT
+        if (card.x <= 0) {
+            card.x = 0;
+            card.vx = Math.abs(card.vx);
+        }
+        else if (card.x + card.w >= world.width) {
+            card.x = world.width - card.w;
+            card.vx = -Math.abs(card.vx);
+        }
+
+        // TOP / BOTTOM
+        if (card.y <= 0) {
+            card.y = 0;
+            card.vy = Math.abs(card.vy);
+        }
+        else if (card.y + card.h >= world.height) {
+            card.y = world.height - card.h;
+            card.vy = -Math.abs(card.vy);
+        }
+
+        // Position anwenden (GPU-friendly)
+        card.style.transform = `translate(${card.x}px, ${card.y}px)`;
+    });
+}
+
+// =====================
+// GALAXY (PARALLAX)
 // =====================
 
 const canvas = document.getElementById("galaxy");
 const ctx = canvas.getContext("2d");
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+function resize() {
+    world.width = window.innerWidth;
+    world.height = window.innerHeight;
+
+    canvas.width = world.width;
+    canvas.height = world.height;
 }
 
-resizeCanvas();
+resize();
 
 let stars = [];
 
-function createStars() {
+function createGalaxy() {
     stars = [];
-    for (let i = 0; i < 200; i++) {
+
+    for (let i = 0; i < 300; i++) {
+        const depth = Math.random(); // 0 = far, 1 = near
+
         stars.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            size: Math.random() * 2 + 0.5,
-            speed: Math.random() * 0.6 + 0.1,
-            alpha: Math.random(),
-            twinkleSpeed: Math.random() * 0.02
+            x: Math.random() * world.width,
+            y: Math.random() * world.height,
+            z: depth,
+            size: depth * 2 + 0.2,
+            speed: depth * 30 + 10,
+            twinkle: Math.random() * Math.PI * 2
         });
     }
 }
 
-createStars();
+createGalaxy();
 
-function drawGalaxy() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawGalaxy(time) {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     stars.forEach(star => {
 
-        // Bewegung (nach unten driften)
-        star.y += star.speed;
+        // Bewegung (Parallax)
+        star.y += star.speed * 0.016;
 
-        // Reset wenn außerhalb
-        if (star.y > canvas.height) {
+        if (star.y > world.height) {
             star.y = 0;
-            star.x = Math.random() * canvas.width;
+            star.x = Math.random() * world.width;
         }
 
-        // Twinkle Effekt
-        star.alpha += (Math.random() - 0.5) * star.twinkleSpeed;
-        star.alpha = Math.max(0.2, Math.min(1, star.alpha));
-
-        // leichte Größenänderung
-        const dynamicSize = star.size + Math.sin(Date.now() * 0.002) * 0.3;
+        // Twinkle + Größenvariation
+        const pulse = Math.sin(time * 0.002 + star.twinkle) * 0.5 + 0.5;
+        const size = star.size * (0.7 + pulse * 0.6);
 
         ctx.beginPath();
-        ctx.arc(star.x, star.y, dynamicSize, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
+        ctx.arc(star.x, star.y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${0.3 + star.z * 0.7})`;
         ctx.fill();
     });
-
-    requestAnimationFrame(drawGalaxy);
 }
 
-drawGalaxy();
-
-
 // =====================
-// WINDOW RESIZE HANDLING
+// RESIZE HANDLING
 // =====================
 
 window.addEventListener("resize", () => {
-    resizeCanvas();
-    createStars();
+    resize();
+    createGalaxy();
 
-    // Karten im Bildschirm halten
     cards.forEach(card => {
-        const rect = card.getBoundingClientRect();
-
-        if (card.x + rect.width > window.innerWidth) {
-            card.x = window.innerWidth - rect.width;
+        if (card.x + card.w > world.width) {
+            card.x = world.width - card.w;
         }
-
-        if (card.y + rect.height > window.innerHeight) {
-            card.y = window.innerHeight - rect.height;
+        if (card.y + card.h > world.height) {
+            card.y = world.height - card.h;
         }
     });
 });
