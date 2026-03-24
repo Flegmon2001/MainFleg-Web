@@ -1,17 +1,21 @@
 // =====================
-// FLOATING LINK CARDS
+// FLOATING LINK CARDS (FIXED)
 // =====================
 
 const cards = document.querySelectorAll(".card");
 
 cards.forEach(card => {
-    // Random start position
-    card.x = Math.random() * window.innerWidth;
-    card.y = Math.random() * window.innerHeight;
+    const rect = card.getBoundingClientRect();
 
-    // Random direction
-    card.vx = (Math.random() - 0.5) * 2;
-    card.vy = (Math.random() - 0.5) * 2;
+    card.x = Math.random() * (window.innerWidth - rect.width);
+    card.y = Math.random() * (window.innerHeight - rect.height);
+
+    // Ensure minimum speed so they never stop
+    const speed = 2 + Math.random() * 2;
+    const angle = Math.random() * Math.PI * 2;
+
+    card.vx = Math.cos(angle) * speed;
+    card.vy = Math.sin(angle) * speed;
 
     card.style.left = card.x + "px";
     card.style.top = card.y + "px";
@@ -19,19 +23,39 @@ cards.forEach(card => {
 
 function moveCards() {
     cards.forEach(card => {
+
+        const rect = card.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
         card.x += card.vx;
         card.y += card.vy;
 
-        const rect = card.getBoundingClientRect();
-
-        // Bounce off walls
-        if (rect.left <= 0 || rect.right >= window.innerWidth) {
-            card.vx *= -1;
-        }
-        if (rect.top <= 0 || rect.bottom >= window.innerHeight) {
-            card.vy *= -1;
+        // Bounce LEFT
+        if (card.x <= 0) {
+            card.x = 0;
+            card.vx = Math.abs(card.vx); // force right
         }
 
+        // Bounce RIGHT
+        if (card.x + width >= window.innerWidth) {
+            card.x = window.innerWidth - width;
+            card.vx = -Math.abs(card.vx); // force left
+        }
+
+        // Bounce TOP
+        if (card.y <= 0) {
+            card.y = 0;
+            card.vy = Math.abs(card.vy); // force down
+        }
+
+        // Bounce BOTTOM
+        if (card.y + height >= window.innerHeight) {
+            card.y = window.innerHeight - height;
+            card.vy = -Math.abs(card.vy); // force up
+        }
+
+        // Apply position
         card.style.left = card.x + "px";
         card.style.top = card.y + "px";
     });
@@ -40,60 +64,3 @@ function moveCards() {
 }
 
 moveCards();
-
-
-// =====================
-// GALAXY BACKGROUND
-// =====================
-
-const canvas = document.getElementById("galaxy");
-const ctx = canvas.getContext("2d");
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-let stars = [];
-
-for (let i = 0; i < 150; i++) {
-    stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 2,
-        speed: Math.random() * 0.5,
-        alpha: Math.random()
-    });
-}
-
-function drawGalaxy() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    stars.forEach(star => {
-        // Move star
-        star.y += star.speed;
-
-        if (star.y > canvas.height) {
-            star.y = 0;
-            star.x = Math.random() * canvas.width;
-        }
-
-        // Twinkle
-        star.alpha += (Math.random() - 0.5) * 0.05;
-        star.alpha = Math.max(0.1, Math.min(1, star.alpha));
-
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
-        ctx.fill();
-    });
-
-    requestAnimationFrame(drawGalaxy);
-}
-
-drawGalaxy();
-
-
-// Resize fix
-window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
